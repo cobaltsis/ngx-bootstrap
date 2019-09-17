@@ -2299,6 +2299,365 @@ BsDatepickerInlineDirective.propDecorators = {
  * @fileoverview added by tsickle
  * @suppress {checkTypes,extraRequire,missingOverride,missingReturn,unusedPrivateMembers,uselessCode} checked by tsc
  */
+class BsDaterangepickerInlineConfig extends BsDatepickerConfig {
+    constructor() {
+        super(...arguments);
+        // DatepickerRenderOptions
+        this.displayMonths = 2;
+        /**
+         * turn on/off animation
+         */
+        this.isAnimated = false;
+    }
+}
+BsDaterangepickerInlineConfig.decorators = [
+    { type: Injectable }
+];
+
+/**
+ * @fileoverview added by tsickle
+ * @suppress {checkTypes,extraRequire,missingOverride,missingReturn,unusedPrivateMembers,uselessCode} checked by tsc
+ */
+class BsDaterangepickerContainerComponent extends BsDatepickerAbstractComponent {
+    /**
+     * @param {?} _renderer
+     * @param {?} _config
+     * @param {?} _store
+     * @param {?} _element
+     * @param {?} _actions
+     * @param {?} _effects
+     * @param {?} _positionService
+     */
+    constructor(_renderer, _config, _store, _element, _actions, _effects, _positionService) {
+        super();
+        this._config = _config;
+        this._store = _store;
+        this._element = _element;
+        this._actions = _actions;
+        this._positionService = _positionService;
+        this.valueChange = new EventEmitter();
+        this.animationState = 'void';
+        this._rangeStack = [];
+        this._subs = [];
+        this._effects = _effects;
+        _renderer.setStyle(_element.nativeElement, 'display', 'block');
+        _renderer.setStyle(_element.nativeElement, 'position', 'absolute');
+    }
+    /**
+     * @param {?} value
+     * @return {?}
+     */
+    set value(value) {
+        this._effects.setRangeValue(value);
+    }
+    /**
+     * @return {?}
+     */
+    ngOnInit() {
+        this._positionService.setOptions({
+            modifiers: { flip: { enabled: this._config.adaptivePosition } },
+            allowedPositions: ['top', 'bottom']
+        });
+        this._positionService.event$
+            .pipe(take(1))
+            .subscribe((/**
+         * @return {?}
+         */
+        () => {
+            this._positionService.disable();
+            if (this._config.isAnimated) {
+                this.animationState = this.isTopPosition ? 'animated-up' : 'animated-down';
+                return;
+            }
+            this.animationState = 'unanimated';
+        }));
+        this.containerClass = this._config.containerClass;
+        this.isOtherMonthsActive = this._config.selectFromOtherMonth;
+        this._effects
+            .init(this._store)
+            // intial state options
+            // todo: fix this, split configs
+            .setOptions(this._config)
+            // data binding view --> model
+            .setBindings(this)
+            // set event handlers
+            .setEventHandlers(this)
+            .registerDatepickerSideEffects();
+        // todo: move it somewhere else
+        // on selected date change
+        this._subs.push(this._store
+            .select((/**
+         * @param {?} state
+         * @return {?}
+         */
+        state => state.selectedRange))
+            .subscribe((/**
+         * @param {?} date
+         * @return {?}
+         */
+        date => this.valueChange.emit(date))));
+    }
+    /**
+     * @return {?}
+     */
+    get isTopPosition() {
+        return this._element.nativeElement.classList.contains('top');
+    }
+    /**
+     * @return {?}
+     */
+    positionServiceEnable() {
+        this._positionService.enable();
+    }
+    /**
+     * @param {?} day
+     * @return {?}
+     */
+    daySelectHandler(day) {
+        /** @type {?} */
+        const isDisabled = this.isOtherMonthsActive ? day.isDisabled : (day.isOtherMonth || day.isDisabled);
+        if (isDisabled) {
+            return;
+        }
+        // if only one date is already selected
+        // and user clicks on previous date
+        // start selection from new date
+        // but if new date is after initial one
+        // than finish selection
+        if (this._rangeStack.length === 1) {
+            this._rangeStack =
+                day.date >= this._rangeStack[0]
+                    ? [this._rangeStack[0], day.date]
+                    : [day.date];
+        }
+        if (this._rangeStack.length === 0) {
+            this._rangeStack = [day.date];
+        }
+        this._store.dispatch(this._actions.selectRange(this._rangeStack));
+        if (this._rangeStack.length === 2) {
+            this._rangeStack = [];
+        }
+    }
+    /**
+     * @return {?}
+     */
+    ngOnDestroy() {
+        for (const sub of this._subs) {
+            sub.unsubscribe();
+        }
+        this._effects.destroy();
+    }
+}
+BsDaterangepickerContainerComponent.decorators = [
+    { type: Component, args: [{
+                selector: 'bs-daterangepicker-container',
+                providers: [BsDatepickerStore, BsDatepickerEffects],
+                template: "<!-- days calendar view mode -->\n<div class=\"bs-datepicker\" [ngClass]=\"containerClass\" *ngIf=\"viewMode | async\">\n  <div\n    class=\"bs-datepicker-container\"\n    [@datepickerAnimation]=\"animationState\"\n    (@datepickerAnimation.done)=\"positionServiceEnable()\">\n    <!--calendars-->\n    <div class=\"bs-calendar-container\" [ngSwitch]=\"viewMode | async\" role=\"application\">\n      <!--days calendar-->\n      <div *ngSwitchCase=\"'day'\" class=\"bs-media-container\">\n        <bs-days-calendar-view\n          *ngFor=\"let calendar of (daysCalendar | async)\"\n          [class.bs-datepicker-multiple]=\"(daysCalendar | async)?.length > 1\"\n          [calendar]=\"calendar\"\n          [options]=\"options | async\"\n          (onNavigate)=\"navigateTo($event)\"\n          (onViewMode)=\"setViewMode($event)\"\n          (onHover)=\"dayHoverHandler($event)\"\n          (onHoverWeek)=\"weekHoverHandler($event)\"\n          (onSelect)=\"daySelectHandler($event)\"\n        ></bs-days-calendar-view>\n      </div>\n\n      <!--months calendar-->\n      <div *ngSwitchCase=\"'month'\" class=\"bs-media-container\">\n        <bs-month-calendar-view\n          *ngFor=\"let calendar of (monthsCalendar | async)\"\n          [class.bs-datepicker-multiple]=\"(daysCalendar | async)?.length > 1\"\n          [calendar]=\"calendar\"\n          (onNavigate)=\"navigateTo($event)\"\n          (onViewMode)=\"setViewMode($event)\"\n          (onHover)=\"monthHoverHandler($event)\"\n          (onSelect)=\"monthSelectHandler($event)\"\n        ></bs-month-calendar-view>\n      </div>\n\n      <!--years calendar-->\n      <div *ngSwitchCase=\"'year'\" class=\"bs-media-container\">\n        <bs-years-calendar-view\n        *ngFor=\"let calendar of (yearsCalendar | async)\"\n        [class.bs-datepicker-multiple]=\"(daysCalendar | async )?.length > 1\"\n        [calendar]=\"calendar\"\n        (onNavigate)=\"navigateTo($event)\"\n        (onViewMode)=\"setViewMode($event)\"\n        (onHover)=\"yearHoverHandler($event)\"\n        (onSelect)=\"yearSelectHandler($event)\"\n      ></bs-years-calendar-view>\n    </div>\n\n  </div>\n\n  <!--applycancel buttons-->\n    <div class=\"bs-datepicker-buttons\" *ngIf=\"false\">\n      <button class=\"btn btn-success\">Apply</button>\n      <button class=\"btn btn-default\">Cancel</button>\n    </div>\n\n  </div>\n\n  <!--custom dates or date ranges picker-->\n  <div class=\"bs-datepicker-custom-range\" *ngIf=\"false\">\n    <bs-custom-date-view [ranges]=\"_customRangesFish\"></bs-custom-date-view>\n  </div>\n</div>\n",
+                host: {
+                    class: 'bottom',
+                    '(click)': '_stopPropagation($event)',
+                    role: 'dialog',
+                    'aria-label': 'calendar'
+                },
+                animations: [datepickerAnimation]
+            }] }
+];
+/** @nocollapse */
+BsDaterangepickerContainerComponent.ctorParameters = () => [
+    { type: Renderer2 },
+    { type: BsDatepickerConfig },
+    { type: BsDatepickerStore },
+    { type: ElementRef },
+    { type: BsDatepickerActions },
+    { type: BsDatepickerEffects },
+    { type: PositioningService }
+];
+
+/**
+ * @fileoverview added by tsickle
+ * @suppress {checkTypes,extraRequire,missingOverride,missingReturn,unusedPrivateMembers,uselessCode} checked by tsc
+ */
+class BsDaterangepickerInlineContainerComponent extends BsDaterangepickerContainerComponent {
+    /**
+     * @param {?} _renderer
+     * @param {?} _config
+     * @param {?} _store
+     * @param {?} _element
+     * @param {?} _actions
+     * @param {?} _effects
+     * @param {?} _positioningService
+     */
+    constructor(_renderer, _config, _store, _element, _actions, _effects, _positioningService) {
+        super(_renderer, _config, _store, _element, _actions, _effects, _positioningService);
+        _renderer.setStyle(_element.nativeElement, 'display', 'inline-block');
+        _renderer.setStyle(_element.nativeElement, 'position', 'static');
+    }
+}
+BsDaterangepickerInlineContainerComponent.decorators = [
+    { type: Component, args: [{
+                selector: 'bs-daterangepicker-inline-container',
+                providers: [BsDatepickerStore, BsDatepickerEffects],
+                template: "<!-- days calendar view mode -->\n<div class=\"bs-datepicker\" [ngClass]=\"containerClass\" *ngIf=\"viewMode | async\">\n  <div\n    class=\"bs-datepicker-container\"\n    [@datepickerAnimation]=\"animationState\"\n    (@datepickerAnimation.done)=\"positionServiceEnable()\">\n    <!--calendars-->\n    <div class=\"bs-calendar-container\" [ngSwitch]=\"viewMode | async\" role=\"application\">\n      <!--days calendar-->\n      <div *ngSwitchCase=\"'day'\" class=\"bs-media-container\">\n        <bs-days-calendar-view\n          *ngFor=\"let calendar of (daysCalendar | async)\"\n          [class.bs-datepicker-multiple]=\"(daysCalendar | async)?.length > 1\"\n          [calendar]=\"calendar\"\n          [options]=\"options | async\"\n          (onNavigate)=\"navigateTo($event)\"\n          (onViewMode)=\"setViewMode($event)\"\n          (onHover)=\"dayHoverHandler($event)\"\n          (onHoverWeek)=\"weekHoverHandler($event)\"\n          (onSelect)=\"daySelectHandler($event)\"\n        ></bs-days-calendar-view>\n      </div>\n\n      <!--months calendar-->\n      <div *ngSwitchCase=\"'month'\" class=\"bs-media-container\">\n        <bs-month-calendar-view\n          *ngFor=\"let calendar of (monthsCalendar | async)\"\n          [class.bs-datepicker-multiple]=\"(daysCalendar | async)?.length > 1\"\n          [calendar]=\"calendar\"\n          (onNavigate)=\"navigateTo($event)\"\n          (onViewMode)=\"setViewMode($event)\"\n          (onHover)=\"monthHoverHandler($event)\"\n          (onSelect)=\"monthSelectHandler($event)\"\n        ></bs-month-calendar-view>\n      </div>\n\n      <!--years calendar-->\n      <div *ngSwitchCase=\"'year'\" class=\"bs-media-container\">\n        <bs-years-calendar-view\n        *ngFor=\"let calendar of (yearsCalendar | async)\"\n        [class.bs-datepicker-multiple]=\"(daysCalendar | async )?.length > 1\"\n        [calendar]=\"calendar\"\n        (onNavigate)=\"navigateTo($event)\"\n        (onViewMode)=\"setViewMode($event)\"\n        (onHover)=\"yearHoverHandler($event)\"\n        (onSelect)=\"yearSelectHandler($event)\"\n      ></bs-years-calendar-view>\n    </div>\n\n  </div>\n\n  <!--applycancel buttons-->\n    <div class=\"bs-datepicker-buttons\" *ngIf=\"false\">\n      <button class=\"btn btn-success\">Apply</button>\n      <button class=\"btn btn-default\">Cancel</button>\n    </div>\n\n  </div>\n\n  <!--custom dates or date ranges picker-->\n  <div class=\"bs-datepicker-custom-range\" *ngIf=\"false\">\n    <bs-custom-date-view [ranges]=\"_customRangesFish\"></bs-custom-date-view>\n  </div>\n</div>\n",
+                host: {
+                    '(click)': '_stopPropagation($event)'
+                },
+                animations: [datepickerAnimation]
+            }] }
+];
+/** @nocollapse */
+BsDaterangepickerInlineContainerComponent.ctorParameters = () => [
+    { type: Renderer2 },
+    { type: BsDatepickerConfig },
+    { type: BsDatepickerStore },
+    { type: ElementRef },
+    { type: BsDatepickerActions },
+    { type: BsDatepickerEffects },
+    { type: PositioningService }
+];
+
+/**
+ * @fileoverview added by tsickle
+ * @suppress {checkTypes,extraRequire,missingOverride,missingReturn,unusedPrivateMembers,uselessCode} checked by tsc
+ */
+class BsDaterangepickerInlineDirective {
+    /**
+     * @param {?} _config
+     * @param {?} _elementRef
+     * @param {?} _renderer
+     * @param {?} _viewContainerRef
+     * @param {?} cis
+     */
+    constructor(_config, _elementRef, _renderer, _viewContainerRef, cis) {
+        this._config = _config;
+        this._elementRef = _elementRef;
+        /**
+         * Emits when daterangepicker value has been changed
+         */
+        this.bsValueChange = new EventEmitter();
+        this._subs = [];
+        // todo: assign only subset of fields
+        Object.assign(this, this._config);
+        this._datepicker = cis.createLoader(_elementRef, _viewContainerRef, _renderer);
+    }
+    /**
+     * Initial value of datepicker
+     * @param {?} value
+     * @return {?}
+     */
+    set bsValue(value) {
+        if (this._bsValue === value) {
+            return;
+        }
+        this._bsValue = value;
+        this.bsValueChange.emit(value);
+    }
+    /**
+     * @return {?}
+     */
+    ngOnInit() {
+        this.setConfig();
+        this._datepickerRef = this._datepicker
+            .provide({ provide: BsDatepickerConfig, useValue: this._config })
+            .attach(BsDaterangepickerInlineContainerComponent)
+            .to(this._elementRef)
+            .show();
+        // if date changes from external source (model -> view)
+        this._subs.push(this.bsValueChange.subscribe((/**
+         * @param {?} value
+         * @return {?}
+         */
+        (value) => {
+            this._datepickerRef.instance.value = value;
+        })));
+        // if date changes from picker (view -> model)
+        this._subs.push(this._datepickerRef.instance.valueChange
+            .pipe(filter((/**
+         * @param {?} range
+         * @return {?}
+         */
+        (range) => range && range[0] && !!range[1])))
+            .subscribe((/**
+         * @param {?} value
+         * @return {?}
+         */
+        (value) => {
+            this.bsValue = value;
+        })));
+    }
+    /**
+     * @param {?} changes
+     * @return {?}
+     */
+    ngOnChanges(changes) {
+        if (!this._datepickerRef || !this._datepickerRef.instance) {
+            return;
+        }
+        if (changes.minDate) {
+            this._datepickerRef.instance.minDate = this.minDate;
+        }
+        if (changes.maxDate) {
+            this._datepickerRef.instance.maxDate = this.maxDate;
+        }
+        if (changes.datesDisabled) {
+            this._datepickerRef.instance.datesDisabled = this.datesDisabled;
+        }
+        if (changes.isDisabled) {
+            this._datepickerRef.instance.isDisabled = this.isDisabled;
+        }
+        if (changes.dateCustomClasses) {
+            this._datepickerRef.instance.dateCustomClasses = this.dateCustomClasses;
+        }
+    }
+    /**
+     * Set config for datepicker
+     * @return {?}
+     */
+    setConfig() {
+        this._config = Object.assign({}, this._config, this.bsConfig, {
+            value: this._bsValue,
+            isDisabled: this.isDisabled,
+            minDate: this.minDate || this.bsConfig && this.bsConfig.minDate,
+            maxDate: this.maxDate || this.bsConfig && this.bsConfig.maxDate,
+            dateCustomClasses: this.dateCustomClasses || this.bsConfig && this.bsConfig.dateCustomClasses,
+            datesDisabled: this.datesDisabled || this.bsConfig && this.bsConfig.datesDisabled
+        });
+    }
+    /**
+     * @return {?}
+     */
+    ngOnDestroy() {
+        this._datepicker.dispose();
+    }
+}
+BsDaterangepickerInlineDirective.decorators = [
+    { type: Directive, args: [{
+                selector: 'bs-daterangepicker-inline',
+                exportAs: 'bsDaterangepickerInline'
+            },] }
+];
+/** @nocollapse */
+BsDaterangepickerInlineDirective.ctorParameters = () => [
+    { type: BsDaterangepickerInlineConfig },
+    { type: ElementRef },
+    { type: Renderer2 },
+    { type: ViewContainerRef },
+    { type: ComponentLoaderFactory }
+];
+BsDaterangepickerInlineDirective.propDecorators = {
+    bsValue: [{ type: Input }],
+    bsConfig: [{ type: Input }],
+    isDisabled: [{ type: Input }],
+    minDate: [{ type: Input }],
+    maxDate: [{ type: Input }],
+    dateCustomClasses: [{ type: Input }],
+    datesDisabled: [{ type: Input }],
+    bsValueChange: [{ type: Output }]
+};
+
+/**
+ * @fileoverview added by tsickle
+ * @suppress {checkTypes,extraRequire,missingOverride,missingReturn,unusedPrivateMembers,uselessCode} checked by tsc
+ */
 /** @type {?} */
 const BS_DATEPICKER_VALUE_ACCESSOR = {
     provide: NG_VALUE_ACCESSOR,
@@ -2512,162 +2871,6 @@ class BsDaterangepickerConfig extends BsDatepickerConfig {
 }
 BsDaterangepickerConfig.decorators = [
     { type: Injectable }
-];
-
-/**
- * @fileoverview added by tsickle
- * @suppress {checkTypes,extraRequire,missingOverride,missingReturn,unusedPrivateMembers,uselessCode} checked by tsc
- */
-class BsDaterangepickerContainerComponent extends BsDatepickerAbstractComponent {
-    /**
-     * @param {?} _effects
-     * @param {?} _actions
-     * @param {?} _config
-     * @param {?} _store
-     * @param {?} _element
-     * @param {?} _positionService
-     */
-    constructor(_effects, _actions, _config, _store, _element, _positionService) {
-        super();
-        this._actions = _actions;
-        this._config = _config;
-        this._store = _store;
-        this._element = _element;
-        this._positionService = _positionService;
-        this.valueChange = new EventEmitter();
-        this.animationState = 'void';
-        this._rangeStack = [];
-        this._subs = [];
-        this._effects = _effects;
-    }
-    /**
-     * @param {?} value
-     * @return {?}
-     */
-    set value(value) {
-        this._effects.setRangeValue(value);
-    }
-    /**
-     * @return {?}
-     */
-    ngOnInit() {
-        this._positionService.setOptions({
-            modifiers: { flip: { enabled: this._config.adaptivePosition } },
-            allowedPositions: ['top', 'bottom']
-        });
-        this._positionService.event$
-            .pipe(take(1))
-            .subscribe((/**
-         * @return {?}
-         */
-        () => {
-            this._positionService.disable();
-            if (this._config.isAnimated) {
-                this.animationState = this.isTopPosition ? 'animated-up' : 'animated-down';
-                return;
-            }
-            this.animationState = 'unanimated';
-        }));
-        this.containerClass = this._config.containerClass;
-        this.isOtherMonthsActive = this._config.selectFromOtherMonth;
-        this._effects
-            .init(this._store)
-            // intial state options
-            // todo: fix this, split configs
-            .setOptions(this._config)
-            // data binding view --> model
-            .setBindings(this)
-            // set event handlers
-            .setEventHandlers(this)
-            .registerDatepickerSideEffects();
-        // todo: move it somewhere else
-        // on selected date change
-        this._subs.push(this._store
-            .select((/**
-         * @param {?} state
-         * @return {?}
-         */
-        state => state.selectedRange))
-            .subscribe((/**
-         * @param {?} date
-         * @return {?}
-         */
-        date => this.valueChange.emit(date))));
-    }
-    /**
-     * @return {?}
-     */
-    get isTopPosition() {
-        return this._element.nativeElement.classList.contains('top');
-    }
-    /**
-     * @return {?}
-     */
-    positionServiceEnable() {
-        this._positionService.enable();
-    }
-    /**
-     * @param {?} day
-     * @return {?}
-     */
-    daySelectHandler(day) {
-        /** @type {?} */
-        const isDisabled = this.isOtherMonthsActive ? day.isDisabled : (day.isOtherMonth || day.isDisabled);
-        if (isDisabled) {
-            return;
-        }
-        // if only one date is already selected
-        // and user clicks on previous date
-        // start selection from new date
-        // but if new date is after initial one
-        // than finish selection
-        if (this._rangeStack.length === 1) {
-            this._rangeStack =
-                day.date >= this._rangeStack[0]
-                    ? [this._rangeStack[0], day.date]
-                    : [day.date];
-        }
-        if (this._rangeStack.length === 0) {
-            this._rangeStack = [day.date];
-        }
-        this._store.dispatch(this._actions.selectRange(this._rangeStack));
-        if (this._rangeStack.length === 2) {
-            this._rangeStack = [];
-        }
-    }
-    /**
-     * @return {?}
-     */
-    ngOnDestroy() {
-        for (const sub of this._subs) {
-            sub.unsubscribe();
-        }
-        this._effects.destroy();
-    }
-}
-BsDaterangepickerContainerComponent.decorators = [
-    { type: Component, args: [{
-                selector: 'bs-daterangepicker-container',
-                providers: [BsDatepickerStore, BsDatepickerEffects],
-                template: "<!-- days calendar view mode -->\n<div class=\"bs-datepicker\" [ngClass]=\"containerClass\" *ngIf=\"viewMode | async\">\n  <div\n    class=\"bs-datepicker-container\"\n    [@datepickerAnimation]=\"animationState\"\n    (@datepickerAnimation.done)=\"positionServiceEnable()\">\n    <!--calendars-->\n    <div class=\"bs-calendar-container\" [ngSwitch]=\"viewMode | async\" role=\"application\">\n      <!--days calendar-->\n      <div *ngSwitchCase=\"'day'\" class=\"bs-media-container\">\n        <bs-days-calendar-view\n          *ngFor=\"let calendar of (daysCalendar | async)\"\n          [class.bs-datepicker-multiple]=\"(daysCalendar | async)?.length > 1\"\n          [calendar]=\"calendar\"\n          [options]=\"options | async\"\n          (onNavigate)=\"navigateTo($event)\"\n          (onViewMode)=\"setViewMode($event)\"\n          (onHover)=\"dayHoverHandler($event)\"\n          (onHoverWeek)=\"weekHoverHandler($event)\"\n          (onSelect)=\"daySelectHandler($event)\"\n        ></bs-days-calendar-view>\n      </div>\n\n      <!--months calendar-->\n      <div *ngSwitchCase=\"'month'\" class=\"bs-media-container\">\n        <bs-month-calendar-view\n          *ngFor=\"let calendar of (monthsCalendar | async)\"\n          [class.bs-datepicker-multiple]=\"(daysCalendar | async)?.length > 1\"\n          [calendar]=\"calendar\"\n          (onNavigate)=\"navigateTo($event)\"\n          (onViewMode)=\"setViewMode($event)\"\n          (onHover)=\"monthHoverHandler($event)\"\n          (onSelect)=\"monthSelectHandler($event)\"\n        ></bs-month-calendar-view>\n      </div>\n\n      <!--years calendar-->\n      <div *ngSwitchCase=\"'year'\" class=\"bs-media-container\">\n        <bs-years-calendar-view\n        *ngFor=\"let calendar of (yearsCalendar | async)\"\n        [class.bs-datepicker-multiple]=\"(daysCalendar | async )?.length > 1\"\n        [calendar]=\"calendar\"\n        (onNavigate)=\"navigateTo($event)\"\n        (onViewMode)=\"setViewMode($event)\"\n        (onHover)=\"yearHoverHandler($event)\"\n        (onSelect)=\"yearSelectHandler($event)\"\n      ></bs-years-calendar-view>\n    </div>\n\n  </div>\n\n  <!--applycancel buttons-->\n    <div class=\"bs-datepicker-buttons\" *ngIf=\"false\">\n      <button class=\"btn btn-success\">Apply</button>\n      <button class=\"btn btn-default\">Cancel</button>\n    </div>\n\n  </div>\n\n  <!--custom dates or date ranges picker-->\n  <div class=\"bs-datepicker-custom-range\" *ngIf=\"false\">\n    <bs-custom-date-view [ranges]=\"_customRangesFish\"></bs-custom-date-view>\n  </div>\n</div>\n",
-                host: {
-                    class: 'bottom',
-                    '(click)': '_stopPropagation($event)',
-                    style: 'position: absolute; display: block;',
-                    role: 'dialog',
-                    'aria-label': 'calendar'
-                },
-                animations: [datepickerAnimation]
-            }] }
-];
-/** @nocollapse */
-BsDaterangepickerContainerComponent.ctorParameters = () => [
-    { type: BsDatepickerEffects },
-    { type: BsDatepickerActions },
-    { type: BsDatepickerConfig },
-    { type: BsDatepickerStore },
-    { type: ElementRef },
-    { type: PositioningService }
 ];
 
 /**
@@ -3713,13 +3916,15 @@ BsYearsCalendarViewComponent.propDecorators = {
 /** @type {?} */
 const _exports = [
     BsDatepickerContainerComponent,
-    BsDaterangepickerContainerComponent,
-    BsDatepickerInlineContainerComponent,
     BsDatepickerDirective,
+    BsDatepickerInlineContainerComponent,
+    BsDatepickerInlineDirective,
     BsDatepickerInputDirective,
-    BsDaterangepickerInputDirective,
+    BsDaterangepickerContainerComponent,
     BsDaterangepickerDirective,
-    BsDatepickerInlineDirective
+    BsDaterangepickerInlineContainerComponent,
+    BsDaterangepickerInlineDirective,
+    BsDaterangepickerInputDirective
 ];
 class BsDatepickerModule {
     /**
@@ -3736,6 +3941,7 @@ class BsDatepickerModule {
                 BsDatepickerConfig,
                 BsDaterangepickerConfig,
                 BsDatepickerInlineConfig,
+                BsDaterangepickerInlineConfig,
                 BsDatepickerEffects,
                 BsLocaleService
             ]
@@ -3746,21 +3952,22 @@ BsDatepickerModule.decorators = [
     { type: NgModule, args: [{
                 imports: [CommonModule],
                 declarations: [
-                    BsDatepickerDayDecoratorComponent,
-                    BsCurrentDateViewComponent,
-                    BsDatepickerNavigationViewComponent,
-                    BsTimepickerViewComponent,
                     BsCalendarLayoutComponent,
+                    BsCurrentDateViewComponent,
+                    BsCustomDatesViewComponent,
+                    BsDatepickerDayDecoratorComponent,
+                    BsDatepickerNavigationViewComponent,
                     BsDaysCalendarViewComponent,
                     BsMonthCalendarViewComponent,
+                    BsTimepickerViewComponent,
                     BsYearsCalendarViewComponent,
-                    BsCustomDatesViewComponent,
                     ..._exports
                 ],
                 entryComponents: [
                     BsDatepickerContainerComponent,
                     BsDaterangepickerContainerComponent,
-                    BsDatepickerInlineContainerComponent
+                    BsDatepickerInlineContainerComponent,
+                    BsDaterangepickerInlineContainerComponent
                 ],
                 exports: _exports
             },] }
@@ -4385,7 +4592,7 @@ DatePickerComponent.propDecorators = {
     activeDate: [{ type: Input }],
     selectionDone: [{ type: Output }],
     activeDateChange: [{ type: Output }],
-    _datePicker: [{ type: ViewChild, args: [DatePickerInnerComponent, { static: false },] }]
+    _datePicker: [{ type: ViewChild, args: [DatePickerInnerComponent, { static: true },] }]
 };
 
 /**
@@ -4869,5 +5076,5 @@ DatepickerModule.decorators = [
             },] }
 ];
 
-export { BsDatepickerConfig, BsDatepickerContainerComponent, BsDatepickerDirective, BsDatepickerInlineConfig, BsDatepickerInlineContainerComponent, BsDatepickerInlineDirective, BsDatepickerInputDirective, BsDatepickerModule, BsDaterangepickerConfig, BsDaterangepickerContainerComponent, BsDaterangepickerDirective, BsDaterangepickerInputDirective, BsLocaleService, DateFormatter, DatePickerComponent, DatePickerInnerComponent, DatepickerConfig, DatepickerModule, DayPickerComponent, MonthPickerComponent, YearPickerComponent, DATEPICKER_CONTROL_VALUE_ACCESSOR as ɵa, BsDatepickerAbstractComponent as ɵb, BsDatepickerStore as ɵc, BsDatepickerEffects as ɵd, BsDatepickerActions as ɵe, datepickerAnimation as ɵf, BsDatepickerDayDecoratorComponent as ɵg, BsCurrentDateViewComponent as ɵh, BsDatepickerNavigationViewComponent as ɵi, BsTimepickerViewComponent as ɵj, BsCalendarLayoutComponent as ɵk, BsDaysCalendarViewComponent as ɵl, BsMonthCalendarViewComponent as ɵm, BsYearsCalendarViewComponent as ɵn, BsCustomDatesViewComponent as ɵo };
+export { BsDatepickerConfig, BsDatepickerContainerComponent, BsDatepickerDirective, BsDatepickerInlineConfig, BsDatepickerInlineContainerComponent, BsDatepickerInlineDirective, BsDatepickerInputDirective, BsDatepickerModule, BsDaterangepickerConfig, BsDaterangepickerContainerComponent, BsDaterangepickerDirective, BsDaterangepickerInlineConfig, BsDaterangepickerInlineContainerComponent, BsDaterangepickerInlineDirective, BsDaterangepickerInputDirective, BsLocaleService, DateFormatter, DatePickerComponent, DatePickerInnerComponent, DatepickerConfig, DatepickerModule, DayPickerComponent, MonthPickerComponent, YearPickerComponent, DATEPICKER_CONTROL_VALUE_ACCESSOR as ɵa, BsDatepickerAbstractComponent as ɵb, BsDatepickerStore as ɵc, BsDatepickerEffects as ɵd, BsDatepickerActions as ɵe, datepickerAnimation as ɵf, BsCalendarLayoutComponent as ɵg, BsCurrentDateViewComponent as ɵh, BsCustomDatesViewComponent as ɵi, BsDatepickerDayDecoratorComponent as ɵj, BsDatepickerNavigationViewComponent as ɵk, BsDaysCalendarViewComponent as ɵl, BsMonthCalendarViewComponent as ɵm, BsTimepickerViewComponent as ɵn, BsYearsCalendarViewComponent as ɵo };
 //# sourceMappingURL=ngx-bootstrap-datepicker.js.map

@@ -379,14 +379,19 @@ class TooltipDirective {
                 cancelDelayedTooltipShowing();
             }));
             if (this.triggers) {
-                /** @type {?} */
-                const triggers = parseTriggers(this.triggers);
-                this._tooltipCancelShowFn = this._renderer.listen(this._elementRef.nativeElement, triggers[0].close, (/**
+                parseTriggers(this.triggers)
+                    .forEach((/**
+                 * @param {?} trigger
                  * @return {?}
                  */
-                () => {
-                    _timer.unsubscribe();
-                    cancelDelayedTooltipShowing();
+                (trigger) => {
+                    this._tooltipCancelShowFn = this._renderer.listen(this._elementRef.nativeElement, trigger.close, (/**
+                     * @return {?}
+                     */
+                    () => {
+                        _timer.unsubscribe();
+                        cancelDelayedTooltipShowing();
+                    }));
                 }));
             }
         }

@@ -1000,7 +1000,8 @@ function shiftDate(date, unit) {
  * @return {?}
  */
 function setFullDate(date, unit) {
-    return createDate(getNum(date.getFullYear(), unit.year), getNum(date.getMonth(), unit.month), getNum(date.getDate(), unit.day), getNum(date.getHours(), unit.hour), getNum(date.getMinutes(), unit.minute), getNum(date.getSeconds(), unit.seconds), getNum(date.getMilliseconds(), unit.milliseconds));
+    return createDate(getNum(date.getFullYear(), unit.year), getNum(date.getMonth(), unit.month), 1, // day, to avoid issue with wrong months selection at the end of current month (#5371)
+    getNum(date.getHours(), unit.hour), getNum(date.getMinutes(), unit.minute), getNum(date.getSeconds(), unit.seconds), getNum(date.getMilliseconds(), unit.milliseconds));
 }
 /**
  * @param {?} def
@@ -7273,6 +7274,7 @@ const hrLocale = {
         lastWeek: '[Zadnji] dddd [u] LT',
         sameElse: 'L'
     },
+    invalidDate: 'Neispravan datum',
     relativeTime: {
         future: 'za %s',
         past: '%s prije',

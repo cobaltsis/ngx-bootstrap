@@ -1,5 +1,5 @@
 import { __assign } from 'tslib';
-import { Injectable, RendererFactory2, Inject, PLATFORM_ID, ElementRef } from '@angular/core';
+import { Injectable, NgZone, RendererFactory2, Inject, PLATFORM_ID, ElementRef } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Subject, merge, fromEvent, of, animationFrameScheduler } from 'rxjs';
 
@@ -1365,30 +1365,35 @@ function positionElements(hostElement, targetElement, placement, appendToBody, o
  * @suppress {checkTypes,extraRequire,missingOverride,missingReturn,unusedPrivateMembers,uselessCode} checked by tsc
  */
 var PositioningService = /** @class */ (function () {
-    function PositioningService(rendererFactory, platformId) {
+    function PositioningService(ngZone, rendererFactory, platformId) {
         var _this = this;
         this.update$$ = new Subject();
         this.positionElements = new Map();
         this.isDisabled = false;
         if (isPlatformBrowser(platformId)) {
-            this.triggerEvent$ = merge(fromEvent(window, 'scroll'), fromEvent(window, 'resize'), 
-            /* tslint:disable-next-line: deprecation */
-            of(0, animationFrameScheduler), this.update$$);
-            this.triggerEvent$.subscribe((/**
+            ngZone.runOutsideAngular((/**
              * @return {?}
              */
             function () {
-                if (_this.isDisabled) {
-                    return;
-                }
-                _this.positionElements
-                    /* tslint:disable-next-line: no-any */
-                    .forEach((/**
-                 * @param {?} positionElement
+                _this.triggerEvent$ = merge(fromEvent(window, 'scroll', { passive: true }), fromEvent(window, 'resize', { passive: true }), 
+                /* tslint:disable-next-line: deprecation */
+                of(0, animationFrameScheduler), _this.update$$);
+                _this.triggerEvent$.subscribe((/**
                  * @return {?}
                  */
-                function (positionElement) {
-                    positionElements(_getHtmlElement(positionElement.target), _getHtmlElement(positionElement.element), positionElement.attachment, positionElement.appendToBody, _this.options, rendererFactory.createRenderer(null, null));
+                function () {
+                    if (_this.isDisabled) {
+                        return;
+                    }
+                    _this.positionElements
+                        /* tslint:disable-next-line: no-any */
+                        .forEach((/**
+                     * @param {?} positionElement
+                     * @return {?}
+                     */
+                    function (positionElement) {
+                        positionElements(_getHtmlElement(positionElement.target), _getHtmlElement(positionElement.element), positionElement.attachment, positionElement.appendToBody, _this.options, rendererFactory.createRenderer(null, null));
+                    }));
                 }));
             }));
         }
@@ -1479,6 +1484,7 @@ var PositioningService = /** @class */ (function () {
     ];
     /** @nocollapse */
     PositioningService.ctorParameters = function () { return [
+        { type: NgZone },
         { type: RendererFactory2 },
         { type: Number, decorators: [{ type: Inject, args: [PLATFORM_ID,] }] }
     ]; };
